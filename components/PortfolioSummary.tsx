@@ -24,7 +24,11 @@ export default function PortfolioSummary({ assets, pricesData }: Props) {
   let totalCostUsd = 0;
 
   for (const asset of assets) {
-    const price = prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0;
+    const isManual = asset.type === 'other';
+    // Manual assets: use avg_cost as current price (no live feed)
+    const price = isManual
+      ? asset.avg_cost_usd
+      : (prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0);
     totalCurrentUsd += price * asset.quantity;
     totalCostUsd += asset.avg_cost_usd * asset.quantity;
   }

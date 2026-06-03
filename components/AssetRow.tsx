@@ -11,22 +11,24 @@ const TYPE_LABEL: Record<string, string> = {
   crypto: 'קריפטו',
   stock: 'מניה',
   etf: 'מדד',
-  other: 'אחר',
+  other: 'ידני',
 };
 
 const TYPE_COLOR: Record<string, string> = {
   crypto: 'bg-orange-100 text-orange-700',
   stock: 'bg-blue-100 text-blue-700',
   etf: 'bg-purple-100 text-purple-700',
-  other: 'bg-gray-100 text-gray-700',
+  other: 'bg-gray-100 text-gray-600',
 };
 
 export default function AssetRow({ asset, pricesData }: Props) {
-  const priceData = pricesData?.prices[asset.ticker.toUpperCase()];
   const usdToIls = pricesData?.usdToIls ?? 3.7;
+  const isManual = asset.type === 'other';
 
-  const currentPrice = priceData?.priceUsd ?? 0;
-  const change24h = priceData?.changePercent24h ?? 0;
+  const priceData = pricesData?.prices[asset.ticker.toUpperCase()];
+  // For manual assets, use avg_cost_usd as the "current" price (no live feed)
+  const currentPrice = isManual ? asset.avg_cost_usd : (priceData?.priceUsd ?? 0);
+  const change24h = isManual ? null : (priceData?.changePercent24h ?? 0);
   const currentValue = currentPrice * asset.quantity;
   const costBasis = asset.avg_cost_usd * asset.quantity;
   const pnl = currentValue - costBasis;
@@ -34,7 +36,7 @@ export default function AssetRow({ asset, pricesData }: Props) {
   const isPositive = pnl >= 0;
 
   const fmtUsd = (n: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n);
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
   const fmtIls = (n: number) =>
     new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n);
 
@@ -57,20 +59,22 @@ export default function AssetRow({ asset, pricesData }: Props) {
       </div>
 
       <div className="flex items-center justify-between text-sm">
-        <div className="text-gray-500">
-          <span>{asset.quantity} יח׳ × {fmtUsd(currentPrice)}</span>
+        <div className="text-gray-400 text-xs">
+          {isManual ? 'עלות השקעה' : `${asset.quantity} יח׳ × ${fmtUsd(currentPrice)}`}
         </div>
         <div className="flex gap-3 text-right">
-          <div>
-            <p className="text-gray-400 text-xs">שינוי 24ש</p>
-            <p className={`text-xs font-medium ${change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {change24h >= 0 ? '+' : ''}{change24h.toFixed(2)}%
-            </p>
-          </div>
+          {!isManual && change24h !== null && (
+            <div>
+              <p className="text-gray-400 text-xs">שינוי 24ש</p>
+              <p className={`text-xs font-medium ${change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {change24h >= 0 ? '+' : ''}{change24h.toFixed(2)}%
+              </p>
+            </div>
+          )}
           <div>
             <p className="text-gray-400 text-xs">רווח/הפסד</p>
             <p className={`text-xs font-medium ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-              {isPositive ? '+' : ''}{pnlPercent.toFixed(1)}%
+              {isManual ? '—' : `${isPositive ? '+' : ''}${pnlPercent.toFixed(1)}%`}
             </p>
           </div>
         </div>
