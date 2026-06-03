@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Asset } from '@/lib/types';
+import { Asset, PricesResponse } from '@/lib/types';
 
 const EMPTY_FORM = {
   name: '',
@@ -14,12 +14,22 @@ const EMPTY_FORM = {
 
 export default function AssetsPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [pricesData, setPricesData] = useState<PricesResponse | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  useEffect(() => { loadAssets(); }, []);
+  useEffect(() => { loadAll(); }, []);
+
+  async function loadAll() {
+    const [assetsRes, pricesRes] = await Promise.all([
+      fetch('/api/assets'),
+      fetch('/api/prices'),
+    ]);
+    setAssets(await assetsRes.json());
+    setPricesData(await pricesRes.json());
+  }
 
   async function loadAssets() {
     const res = await fetch('/api/assets');
@@ -65,7 +75,18 @@ export default function AssetsPage() {
     loadAssets();
   }
 
-  const TYPE_LABEL: Record<string, string> = { crypto: 'קריפטו', stock: 'מניה', etf: 'מדד', other: 'אחר' };
+  const TYPE_LABEL: Record<string, string> = { crypto: 'קריפטו', stock: 'מניה', etf: 'מדד', other: 'ידני' };
+
+  const usdToIls = pricesData?.usdToIls ?? 3.7;
+
+  function getValueIls(asset: Asset): string {
+    const isManual = asset.type === 'other';
+    const price = isManual
+      ? asset.avg_cost_usd
+      : (pricesData?.prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0);
+    const valueIls = price * asset.quantity * usdToIls;
+    return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(valueIls);
+  }
 
   return (
     <div>
@@ -176,28 +197,30 @@ export default function AssetsPage() {
         </div>
       ) : (
         assets.map(asset => (
-          <div key={asset.id} className="bg-white rounded-2xl p-4 shadow-sm mb-3 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
+          <div key={asset.id} className="bg-white rounded-2xl p-4 shadow-sm mb-3">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
                 <span className="font-bold text-gray-800">{asset.ticker}</span>
                 <span className="text-xs text-gray-400">{TYPE_LABEL[asset.type]}</span>
               </div>
-              <p className="text-sm text-gray-500">{asset.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{asset.quantity} יח׳ × ${asset.avg_cost_usd.toLocaleString()}</p>
+              <span className="font-semibold text-gray-800">{getValueIls(asset)}</span>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => startEdit(asset)}
-                className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full"
-              >
-                ערוך
-              </button>
-              <button
-                onClick={() => handleDelete(asset.id)}
-                className="text-xs bg-red-50 text-red-500 px-3 py-1.5 rounded-full"
-              >
-                מחק
-              </button>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">{asset.name}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => startEdit(asset)}
+                  className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full"
+                >
+                  ערוך
+                </button>
+                <button
+                  onClick={() => handleDelete(asset.id)}
+                  className="text-xs bg-red-50 text-red-500 px-3 py-1.5 rounded-full"
+                >
+                  מחק
+                </button>
+              </div>
             </div>
           </div>
         ))
