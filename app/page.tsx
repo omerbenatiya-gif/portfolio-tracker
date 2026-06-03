@@ -1,65 +1,96 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useEffect, useState, useCallback } from 'react';
+import PortfolioSummary from '@/components/PortfolioSummary';
+import AssetRow from '@/components/AssetRow';
+import AllocationChart from '@/components/AllocationChart';
+import GrowthChart from '@/components/GrowthChart';
+import { Asset, PricesResponse, PortfolioSnapshot } from '@/lib/types';
+
+type Currency = 'ILS' | 'USD';
+
+export default function DashboardPage() {
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [pricesData, setPricesData] = useState<PricesResponse | null>(null);
+  const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
+  const [currency, setCurrency] = useState<Currency>('ILS');
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const fetchAll = useCallback(async () => {
+    try {
+      const [assetsRes, pricesRes, snapshotsRes] = await Promise.all([
+        fetch('/api/assets'),
+        fetch('/api/prices'),
+        fetch('/api/snapshots'),
+      ]);
+      const [assetsData, prices, snapshotsData] = await Promise.all([
+        assetsRes.json(),
+        pricesRes.json(),
+        snapshotsRes.json(),
+      ]);
+      setAssets(assetsData);
+      setPricesData(prices);
+      setSnapshots(snapshotsData);
+      setLastUpdated(new Date());
+      fetch('/api/snapshots', { method: 'POST' });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAll();
+    const interval = setInterval(fetchAll, 60_000);
+    return () => clearInterval(interval);
+  }, [fetchAll]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <>
+      <div>
+        <div className="flex items-center justify-between mb-5">
+          <h1 className="text-xl font-bold text-gray-800">תיק ההשקעות שלי</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrency(c => c === 'ILS' ? 'USD' : 'ILS')}
+              className="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full font-medium"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              {currency === 'ILS' ? '₪ → $' : '$ → ₪'}
+            </button>
+            <button
+              onClick={fetchAll}
+              className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full"
+              disabled={loading}
             >
-              Learning
-            </a>{" "}
-            center.
+              {loading ? '...' : '🔄'}
+            </button>
+          </div>
+        </div>
+
+        {lastUpdated && (
+          <p className="text-gray-400 text-xs mb-4">
+            עודכן: {lastUpdated.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        )}
+
+        <PortfolioSummary assets={assets} pricesData={pricesData} />
+        <AllocationChart assets={assets} pricesData={pricesData} />
+        <GrowthChart snapshots={snapshots} currency={currency} />
+
+        <h2 className="font-semibold text-gray-700 mb-3 text-sm">נכסים בתיק</h2>
+        {assets.length === 0 ? (
+          <div className="bg-white rounded-2xl p-6 text-center shadow-sm">
+            <p className="text-gray-400 mb-3">עדיין אין נכסים בתיק</p>
+            <a href="/assets" className="text-indigo-600 text-sm font-medium">+ הוסף נכס ראשון</a>
+          </div>
+        ) : (
+          assets.map(asset => (
+            <AssetRow key={asset.id} asset={asset} pricesData={pricesData} />
+          ))
+        )}
+      </div>
+    </>
   );
 }
