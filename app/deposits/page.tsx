@@ -42,8 +42,7 @@ export default function DepositsPage() {
     loadDeposits();
   }
 
-  const totalDeposited = deposits.reduce((s, d) => s + (d.amount_ils && d.amount_ils > 0 ? d.amount_ils : 0), 0);
-  const totalWithdrawn = deposits.reduce((s, d) => s + (d.amount_ils && d.amount_ils < 0 ? d.amount_ils : 0), 0);
+  const netTotal = deposits.reduce((s, d) => s + (d.amount_ils ?? 0), 0);
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n);
@@ -60,15 +59,9 @@ export default function DepositsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <p className="text-gray-400 text-xs mb-1">סה״כ הופקד</p>
-          <p className="font-bold text-gray-800">{fmt(totalDeposited)}</p>
-        </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <p className="text-gray-400 text-xs mb-1">סה״כ נמשך</p>
-          <p className="font-bold text-red-500">{fmt(Math.abs(totalWithdrawn))}</p>
-        </div>
+      <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
+        <p className="text-gray-400 text-xs mb-1">סה״כ מושקע נטו</p>
+        <p className="font-bold text-gray-800 text-xl">{fmt(netTotal)}</p>
       </div>
 
       {showForm && (
