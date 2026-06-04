@@ -16,10 +16,13 @@ export async function initSchema() {
       type TEXT NOT NULL,
       quantity REAL NOT NULL DEFAULT 0,
       avg_cost_usd REAL NOT NULL DEFAULT 0,
+      cost_ils REAL,
       btc_address TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+  // Migration: add cost_ils if not exists
+  await sql`ALTER TABLE assets ADD COLUMN IF NOT EXISTS cost_ils REAL`;
   await sql`
     CREATE TABLE IF NOT EXISTS deposits (
       id SERIAL PRIMARY KEY,

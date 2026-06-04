@@ -5,6 +5,7 @@ export interface Asset {
   type: 'crypto' | 'stock' | 'etf' | 'other';
   quantity: number;
   avg_cost_usd: number;
+  cost_ils: number | null;  // actual ILS paid — used for "הושקע" display
   btc_address: string | null;
   created_at: string;
 }

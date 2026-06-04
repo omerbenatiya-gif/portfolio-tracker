@@ -16,20 +16,23 @@ export async function GET(req: Request) {
 
   // 'other' type: avg_cost_usd stores ILS amount directly (no rate conversion)
   // 'stock'/'etf' type: avg_cost_usd stores real USD cost per share + live price via Yahoo Finance
+  // cost_usd: avg cost per share in USD (for live P&L vs market)
+  // cost_ils: actual ILS paid (must match deposits history)
+  // For 'other' type: cost_usd = ILS amount (stored directly), cost_ils = same
   const assets = [
-    { name: 'ביטקוין',          ticker: 'BTC',      type: 'other', qty: 1,  cost: 49000    },
-    { name: 'אית׳ריום',          ticker: 'ETH',      type: 'other', qty: 1,  cost: 10000    },
-    { name: 'ריפל',               ticker: 'XRP',      type: 'other', qty: 1,  cost: 7000     },
-    { name: 'Amazon',             ticker: 'AMZN',     type: 'stock', qty: 13, cost: 216.82   },
-    { name: 'Invesco QQQ Trust',  ticker: 'QQQ',      type: 'etf',   qty: 7,  cost: 484.55   },
-    { name: 'SPDR S&P 500 ETF',  ticker: 'SPY',      type: 'etf',   qty: 11, cost: 560.35   },
-    { name: 'S&P קרן השתלמות',   ticker: 'CLAL',     type: 'other', qty: 1,  cost: 81565    },
+    { name: 'ביטקוין',         ticker: 'BTC',   type: 'other', qty: 1,  cost_usd: 49000,    cost_ils: 49000    },
+    { name: 'אית׳ריום',         ticker: 'ETH',   type: 'other', qty: 1,  cost_usd: 10000,    cost_ils: 10000    },
+    { name: 'ריפל',              ticker: 'XRP',   type: 'other', qty: 1,  cost_usd: 7000,     cost_ils: 7000     },
+    { name: 'Amazon',            ticker: 'AMZN',  type: 'stock', qty: 13, cost_usd: 216.82,   cost_ils: 10161.44 },
+    { name: 'Invesco QQQ Trust', ticker: 'QQQ',   type: 'etf',   qty: 7,  cost_usd: 484.55,   cost_ils: 11367.21 },
+    { name: 'SPDR S&P 500 ETF', ticker: 'SPY',   type: 'etf',   qty: 11, cost_usd: 560.35,   cost_ils: 21045.66 },
+    { name: 'S&P קרן השתלמות',  ticker: 'CLAL',  type: 'other', qty: 1,  cost_usd: 81565,    cost_ils: 81565    },
   ];
 
   for (const a of assets) {
     await sql`
-      INSERT INTO assets (name, ticker, type, quantity, avg_cost_usd)
-      VALUES (${a.name}, ${a.ticker}, ${a.type}, ${a.qty}, ${a.cost})
+      INSERT INTO assets (name, ticker, type, quantity, avg_cost_usd, cost_ils)
+      VALUES (${a.name}, ${a.ticker}, ${a.type}, ${a.qty}, ${a.cost_usd}, ${a.cost_ils})
     `;
   }
 

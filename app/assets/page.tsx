@@ -56,9 +56,8 @@ export default function AssetsPage() {
 
   function calcAsset(asset: Asset) {
     const isManual = asset.type === 'other';
-    const costIls = isManual
-      ? asset.avg_cost_usd * asset.quantity
-      : asset.avg_cost_usd * asset.quantity * usdToIls;
+    // Use cost_ils (actual ILS paid) — falls back to avg_cost_usd for 'other' (stored as ILS)
+    const costIls = asset.cost_ils ?? (isManual ? asset.avg_cost_usd * asset.quantity : asset.avg_cost_usd * asset.quantity * usdToIls);
     const currentPriceUsd = isManual ? null : (pricesData?.prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0);
     const currentIls = isManual ? costIls : (currentPriceUsd ?? 0) * asset.quantity * usdToIls;
     const pnlIls = currentIls - costIls;
