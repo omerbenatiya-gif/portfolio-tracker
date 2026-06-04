@@ -5,6 +5,7 @@ import { Asset, PricesResponse } from '@/lib/types';
 interface Props {
   asset: Asset;
   pricesData: PricesResponse | null;
+  currency: 'ILS' | 'USD';
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -21,7 +22,7 @@ const TYPE_COLOR: Record<string, string> = {
   other: 'bg-gray-100 text-gray-600',
 };
 
-export default function AssetRow({ asset, pricesData }: Props) {
+export default function AssetRow({ asset, pricesData, currency }: Props) {
   const usdToIls = pricesData?.usdToIls ?? 3.7;
   const isManual = asset.type === 'other';
 
@@ -53,8 +54,12 @@ export default function AssetRow({ asset, pricesData }: Props) {
           <p className="text-gray-500 text-sm">{asset.name}</p>
         </div>
         <div className="text-right">
-          <p className="font-semibold text-gray-800">{fmtIls(currentValue * usdToIls)}</p>
-          <p className="text-gray-400 text-xs">{fmtUsd(currentValue)}</p>
+          <p className="font-semibold text-gray-800">
+            {currency === 'ILS' ? fmtIls(currentValue * usdToIls) : fmtUsd(currentValue)}
+          </p>
+          <p className="text-gray-400 text-xs">
+            {currency === 'ILS' ? fmtUsd(currentValue) : fmtIls(currentValue * usdToIls)}
+          </p>
         </div>
       </div>
 

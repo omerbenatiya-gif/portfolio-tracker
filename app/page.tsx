@@ -7,17 +7,18 @@ import AllocationChart from '@/components/AllocationChart';
 import GrowthChart from '@/components/GrowthChart';
 import { Asset, PricesResponse, PortfolioSnapshot } from '@/lib/types';
 
-type Currency = 'ILS' | 'USD';
+export type Currency = 'ILS' | 'USD';
 
 export default function DashboardPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [pricesData, setPricesData] = useState<PricesResponse | null>(null);
   const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
   const [currency, setCurrency] = useState<Currency>('ILS');
-  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchAll = useCallback(async () => {
+    setRefreshing(true);
     try {
       const [assetsRes, pricesRes, snapshotsRes] = await Promise.all([
         fetch('/api/assets'),
@@ -37,7 +38,7 @@ export default function DashboardPage() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -61,10 +62,18 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={fetchAll}
-              className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full"
-              disabled={loading}
+              disabled={refreshing}
+              className="bg-gray-100 text-gray-600 p-2 rounded-full disabled:opacity-40"
+              aria-label="רענן"
             >
-              {loading ? '...' : '🔄'}
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}
+              >
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
             </button>
           </div>
         </div>
@@ -75,7 +84,7 @@ export default function DashboardPage() {
           </p>
         )}
 
-        <PortfolioSummary assets={assets} pricesData={pricesData} />
+        <PortfolioSummary assets={assets} pricesData={pricesData} currency={currency} />
         <AllocationChart assets={assets} pricesData={pricesData} />
         <GrowthChart snapshots={snapshots} currency={currency} />
 
@@ -87,10 +96,14 @@ export default function DashboardPage() {
           </div>
         ) : (
           assets.map(asset => (
-            <AssetRow key={asset.id} asset={asset} pricesData={pricesData} />
+            <AssetRow key={asset.id} asset={asset} pricesData={pricesData} currency={currency} />
           ))
         )}
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </>
   );
 }

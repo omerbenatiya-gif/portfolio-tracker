@@ -5,9 +5,10 @@ import { Asset, PricesResponse } from '@/lib/types';
 interface Props {
   assets: Asset[];
   pricesData: PricesResponse | null;
+  currency: 'ILS' | 'USD';
 }
 
-export default function PortfolioSummary({ assets, pricesData }: Props) {
+export default function PortfolioSummary({ assets, pricesData, currency }: Props) {
   if (!pricesData) {
     return (
       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -45,8 +46,12 @@ export default function PortfolioSummary({ assets, pricesData }: Props) {
     <div className="mb-6">
       <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl p-5 text-white mb-3 shadow-lg">
         <p className="text-indigo-200 text-sm mb-1">שווי תיק כולל</p>
-        <p className="text-3xl font-bold">{fmt(totalCurrentIls, 'ILS')}</p>
-        <p className="text-indigo-200 text-lg mt-1">{fmt(totalCurrentUsd, 'USD')}</p>
+        <p className="text-3xl font-bold">
+          {currency === 'ILS' ? fmt(totalCurrentIls, 'ILS') : fmt(totalCurrentUsd, 'USD')}
+        </p>
+        <p className="text-indigo-200 text-lg mt-1">
+          {currency === 'ILS' ? fmt(totalCurrentUsd, 'USD') : fmt(totalCurrentIls, 'ILS')}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
