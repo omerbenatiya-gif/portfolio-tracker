@@ -175,8 +175,13 @@ function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
-function formatDate(d: string) {
-  const clean = String(d).split('T')[0];
-  const [y, m, day] = clean.split('-');
-  return `${day}/${m}/${y}`;
+function formatDate(d: string | Date | unknown) {
+  if (d instanceof Date) {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}/${d.getFullYear()}`;
+  }
+  const match = String(d).match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+  return String(d);
 }
