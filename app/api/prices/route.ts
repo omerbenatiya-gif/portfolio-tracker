@@ -10,7 +10,8 @@ export async function GET() {
 
     type Row = { ticker: string; type: string };
     const cryptoTickers = (assets as Row[]).filter(a => a.type === 'crypto').map(a => a.ticker);
-    const stockTickers = (assets as Row[]).filter(a => a.type !== 'crypto').map(a => a.ticker);
+    // Only fetch live prices for stock/etf — skip 'other' (manual ILS amounts)
+    const stockTickers = (assets as Row[]).filter(a => a.type === 'stock' || a.type === 'etf').map(a => a.ticker);
 
     const [cryptoPrices, stockPrices, usdToIls] = await Promise.all([
       fetchCryptoPrices(cryptoTickers),
