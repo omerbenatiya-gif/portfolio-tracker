@@ -7,13 +7,10 @@ import AllocationChart from '@/components/AllocationChart';
 import GrowthChart from '@/components/GrowthChart';
 import { Asset, PricesResponse, PortfolioSnapshot } from '@/lib/types';
 
-export type Currency = 'ILS' | 'USD';
-
 export default function DashboardPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [pricesData, setPricesData] = useState<PricesResponse | null>(null);
   const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
-  const [currency, setCurrency] = useState<Currency>('ILS');
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -25,14 +22,9 @@ export default function DashboardPage() {
         fetch('/api/prices'),
         fetch('/api/snapshots'),
       ]);
-      const [assetsData, prices, snapshotsData] = await Promise.all([
-        assetsRes.json(),
-        pricesRes.json(),
-        snapshotsRes.json(),
-      ]);
-      setAssets(assetsData);
-      setPricesData(prices);
-      setSnapshots(snapshotsData);
+      setAssets(await assetsRes.json());
+      setPricesData(await pricesRes.json());
+      setSnapshots(await snapshotsRes.json());
       setLastUpdated(new Date());
       fetch('/api/snapshots', { method: 'POST' });
     } catch (err) {
@@ -53,29 +45,20 @@ export default function DashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-xl font-bold text-gray-800">תיק ההשקעות שלי</h1>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrency(c => c === 'ILS' ? 'USD' : 'ILS')}
-              className="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full font-medium"
+          <button
+            onClick={fetchAll}
+            disabled={refreshing}
+            className="bg-gray-100 text-gray-600 p-2 rounded-full disabled:opacity-40"
+          >
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}
             >
-              {currency === 'ILS' ? '₪ → $' : '$ → ₪'}
-            </button>
-            <button
-              onClick={fetchAll}
-              disabled={refreshing}
-              className="bg-gray-100 text-gray-600 p-2 rounded-full disabled:opacity-40"
-              aria-label="רענן"
-            >
-              <svg
-                width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}
-              >
-                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-              </svg>
-            </button>
-          </div>
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+          </button>
         </div>
 
         {lastUpdated && (
@@ -84,9 +67,9 @@ export default function DashboardPage() {
           </p>
         )}
 
-        <PortfolioSummary assets={assets} pricesData={pricesData} currency={currency} />
+        <PortfolioSummary assets={assets} pricesData={pricesData} currency="ILS" />
         <AllocationChart assets={assets} pricesData={pricesData} />
-        <GrowthChart snapshots={snapshots} currency={currency} />
+        <GrowthChart snapshots={snapshots} currency="ILS" />
 
         <h2 className="font-semibold text-gray-700 mb-3 text-sm">נכסים בתיק</h2>
         {assets.length === 0 ? (
@@ -96,14 +79,11 @@ export default function DashboardPage() {
           </div>
         ) : (
           assets.map(asset => (
-            <AssetRow key={asset.id} asset={asset} pricesData={pricesData} currency={currency} />
+            <AssetRow key={asset.id} asset={asset} pricesData={pricesData} currency="ILS" />
           ))
         )}
       </div>
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </>
   );
 }

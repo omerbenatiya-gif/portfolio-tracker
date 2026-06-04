@@ -11,29 +11,27 @@ interface Props {
 const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316'];
 
 export default function AllocationChart({ assets, pricesData }: Props) {
-  if (!pricesData || assets.length === 0) {
+  if (assets.length === 0) {
     return (
-      <div className="bg-white rounded-2xl p-4 shadow-sm mb-3 h-64 flex items-center justify-center">
+      <div className="bg-white rounded-2xl p-4 shadow-sm mb-3 h-48 flex items-center justify-center">
         <p className="text-gray-400 text-sm">אין נכסים להצגה</p>
       </div>
     );
   }
 
-  const { prices, usdToIls } = pricesData;
+  const usdToIls = pricesData?.usdToIls ?? 3.7;
 
   const data = assets.map((asset, i) => {
-    const isManual = asset.type === 'other';
-    const valueUsd = isManual
-      ? (asset.avg_cost_usd * asset.quantity) / usdToIls
-      : (prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0) * asset.quantity;
-    return {
-      name: asset.ticker.toUpperCase(),
-      value: valueUsd,
-      color: COLORS[i % COLORS.length],
-    };
+    const valueIls = asset.type === 'other'
+      ? asset.avg_cost_usd * asset.quantity
+      : (pricesData?.prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0) * asset.quantity * usdToIls;
+    return { name: asset.ticker.toUpperCase(), value: valueIls, color: COLORS[i % COLORS.length] };
   }).filter(d => d.value > 0);
 
-  const total = data.reduce((sum, d) => sum + d.value, 0);
+  const total = data.reduce((s, d) => s + d.value, 0);
+
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n);
 
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm mb-3">
@@ -41,13 +39,9 @@ export default function AllocationChart({ assets, pricesData }: Props) {
       <ResponsiveContainer width="100%" height={200}>
         <PieChart>
           <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={3}>
-            {data.map((entry, i) => (
-              <Cell key={i} fill={entry.color} />
-            ))}
+            {data.map((entry, i) => <Cell key={i} fill={entry.color} />)}
           </Pie>
-          <Tooltip
-            formatter={(value) => [`${((Number(value) / total) * 100).toFixed(1)}%`, 'חלק']}
-          />
+          <Tooltip formatter={(v) => [fmt(Number(v)), `${((Number(v) / total) * 100).toFixed(1)}%`]} />
           <Legend />
         </PieChart>
       </ResponsiveContainer>
