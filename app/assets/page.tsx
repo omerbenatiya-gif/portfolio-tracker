@@ -80,11 +80,9 @@ export default function AssetsPage() {
   const usdToIls = pricesData?.usdToIls ?? 3.7;
 
   function getValueIls(asset: Asset): string {
-    const isManual = asset.type === 'other';
-    const price = isManual
-      ? asset.avg_cost_usd
-      : (pricesData?.prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0);
-    const valueIls = price * asset.quantity * usdToIls;
+    const valueIls = asset.type === 'other'
+      ? asset.avg_cost_usd * asset.quantity          // stored as ILS directly
+      : (pricesData?.prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0) * asset.quantity * usdToIls;
     return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(valueIls);
   }
 
