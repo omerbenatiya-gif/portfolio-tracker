@@ -14,22 +14,22 @@ export async function GET(req: Request) {
   await sql`DELETE FROM deposits`;
   await sql`DELETE FROM assets`;
 
-  // For "other" type: avg_cost_usd stores the ILS amount directly (no conversion).
-  // Display: ILS = avg_cost_usd × 1, USD = avg_cost_usd / usdToIls
+  // 'other' type: avg_cost_usd stores ILS amount directly (no rate conversion)
+  // 'stock'/'etf' type: avg_cost_usd stores real USD cost per share + live price via Yahoo Finance
   const assets = [
-    { name: 'ביטקוין',                   ticker: 'BTC',      type: 'other', qty: 1, ils: 49000    },
-    { name: 'אית׳ריום',                   ticker: 'ETH',      type: 'other', qty: 1, ils: 10000    },
-    { name: 'ריפל',                        ticker: 'XRP',      type: 'other', qty: 1, ils: 7000     },
-    { name: 'Amazon',                      ticker: 'AMZN',     type: 'other', qty: 1, ils: 10161.44 },
-    { name: 'Invesco QQQ Trust',           ticker: 'QQQ',      type: 'other', qty: 1, ils: 11367.21 },
-    { name: 'SPDR S&P 500 ETF',           ticker: 'SPY',      type: 'other', qty: 1, ils: 21045.66 },
-    { name: 'S&P קרן השתלמות',            ticker: 'HISHTALM', type: 'other', qty: 1, ils: 81565    },
+    { name: 'ביטקוין',          ticker: 'BTC',      type: 'other', qty: 1,  cost: 49000    },
+    { name: 'אית׳ריום',          ticker: 'ETH',      type: 'other', qty: 1,  cost: 10000    },
+    { name: 'ריפל',               ticker: 'XRP',      type: 'other', qty: 1,  cost: 7000     },
+    { name: 'Amazon',             ticker: 'AMZN',     type: 'stock', qty: 13, cost: 216.82   },
+    { name: 'Invesco QQQ Trust',  ticker: 'QQQ',      type: 'etf',   qty: 7,  cost: 484.55   },
+    { name: 'SPDR S&P 500 ETF',  ticker: 'SPY',      type: 'etf',   qty: 11, cost: 560.35   },
+    { name: 'S&P קרן השתלמות',   ticker: 'CLAL',     type: 'other', qty: 1,  cost: 81565    },
   ];
 
   for (const a of assets) {
     await sql`
       INSERT INTO assets (name, ticker, type, quantity, avg_cost_usd)
-      VALUES (${a.name}, ${a.ticker}, ${a.type}, ${a.qty}, ${a.ils})
+      VALUES (${a.name}, ${a.ticker}, ${a.type}, ${a.qty}, ${a.cost})
     `;
   }
 

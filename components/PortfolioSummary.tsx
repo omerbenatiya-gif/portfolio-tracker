@@ -32,8 +32,12 @@ export default function PortfolioSummary({ assets, pricesData }: Props) {
     );
   }
 
+  const usdToIls = pricesData?.usdToIls ?? 3.7;
   const totalIls = assets.reduce((sum, a) => sum + getAssetValueIls(a, pricesData), 0);
-  const totalCostIls = assets.reduce((sum, a) => sum + a.avg_cost_usd * a.quantity, 0);
+  const totalCostIls = assets.reduce((sum, a) => {
+    if (a.type === 'other') return sum + a.avg_cost_usd * a.quantity; // stored as ILS
+    return sum + a.avg_cost_usd * a.quantity * usdToIls;              // USD → ILS
+  }, 0);
   const pnlIls = totalIls - totalCostIls;
   const pnlPercent = totalCostIls > 0 ? (pnlIls / totalCostIls) * 100 : 0;
   const isPositive = pnlIls >= 0;
