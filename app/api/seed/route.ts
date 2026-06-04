@@ -26,8 +26,6 @@ export async function GET(req: Request) {
     { name: 'Invesco QQQ Trust',           ticker: 'QQQ',      type: 'other', qty: 1, ils: 11367.21 },
     { name: 'SPDR S&P 500 ETF',           ticker: 'SPY',      type: 'other', qty: 1, ils: 21045.66 },
     { name: 'S&P קרן השתלמות',            ticker: 'HISHTALM', type: 'other', qty: 1, ils: 81565    },
-    { name: 'פניסה - גמל השקעה (כלל)',    ticker: 'PENSION',  type: 'other', qty: 1, ils: 11500    },
-    { name: 'מיטב קופת גמל',              ticker: 'MITAV',    type: 'other', qty: 1, ils: 20000    },
   ];
 
   for (const a of assets) {

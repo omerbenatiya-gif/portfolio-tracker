@@ -176,5 +176,7 @@ function todayStr() {
 }
 
 function formatDate(d: string) {
-  return new Date(d + 'T00:00:00').toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const clean = String(d).split('T')[0];
+  const [y, m, day] = clean.split('-');
+  return `${day}/${m}/${y}`;
 }
