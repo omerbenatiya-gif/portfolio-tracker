@@ -68,6 +68,8 @@ export default function AssetsPage() {
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n);
+  const fmtUsd = (n: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 
   return (
     <div>
@@ -147,7 +149,10 @@ export default function AssetsPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-gray-800">{fmt(currentIls)}</span>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-800">{fmt(currentIls)}</p>
+                    <p className="text-xs text-gray-400">{fmtUsd(currentIls / usdToIls)}</p>
+                  </div>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                     style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', color: '#9ca3af' }}>
                     <polyline points="6 9 12 15 18 9" />
@@ -165,10 +170,12 @@ export default function AssetsPage() {
                     <div className="bg-gray-50 rounded-xl p-3 text-center">
                       <p className="text-gray-400 text-xs mb-1">הושקע</p>
                       <p className="font-bold text-gray-700 text-sm">{fmt(costIls)}</p>
+                      <p className="text-gray-400 text-xs">{fmtUsd(costIls / usdToIls)}</p>
                     </div>
                     <div className="bg-indigo-50 rounded-xl p-3 text-center">
                       <p className="text-gray-400 text-xs mb-1">שווי נוכחי</p>
                       <p className="font-bold text-indigo-700 text-sm">{fmt(currentIls)}</p>
+                      <p className="text-indigo-400 text-xs">{fmtUsd(currentIls / usdToIls)}</p>
                     </div>
                     <div className={`rounded-xl p-3 text-center ${isProfit ? 'bg-green-50' : 'bg-red-50'}`}>
                       <p className="text-gray-400 text-xs mb-1">רווח/הפסד</p>
