@@ -8,10 +8,20 @@ const EMPTY_FORM = { date: '', amount_ils: '', note: '' };
 export default function DepositsPage() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [form, setForm] = useState({ ...EMPTY_FORM, date: todayStr() });
+  const [ratePreview, setRatePreview] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => { loadDeposits(); }, []);
+
+  // Auto-fetch historical rate when date changes
+  useEffect(() => {
+    if (!form.date) return;
+    fetch(`/api/exchange-rate?date=${form.date}`)
+      .then(r => r.json())
+      .then(d => setRatePreview(d.usdToIls ?? null))
+      .catch(() => setRatePreview(null));
+  }, [form.date]);
 
   async function loadDeposits() {
     const res = await fetch('/api/deposits');
@@ -21,16 +31,16 @@ export default function DepositsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    const amountIls = form.amount_ils ? parseFloat(form.amount_ils) : null;
+    const amountUsd = (amountIls != null && ratePreview) ? +(amountIls / ratePreview).toFixed(2) : null;
+
     await fetch('/api/deposits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date: form.date,
-        amount_ils: form.amount_ils ? parseFloat(form.amount_ils) : null,
-        note: form.note || null,
-      }),
+      body: JSON.stringify({ date: form.date, amount_ils: amountIls, amount_usd: amountUsd, note: form.note || null }),
     });
     setForm({ ...EMPTY_FORM, date: todayStr() });
+    setRatePreview(null);
     setShowForm(false);
     setSaving(false);
     loadDeposits();
@@ -43,25 +53,27 @@ export default function DepositsPage() {
   }
 
   const netTotal = deposits.reduce((s, d) => s + (d.amount_ils ?? 0), 0);
+  const amountIlsNum = form.amount_ils ? parseFloat(form.amount_ils) : null;
+  const usdPreview = (amountIlsNum && ratePreview) ? amountIlsNum / ratePreview : null;
 
-  const fmt = (n: number) =>
+  const fmtIls = (n: number) =>
     new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n);
+  const fmtUsd = (n: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-xl font-bold text-gray-800">פקדונות ומשיכות</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-full font-medium"
-        >
+        <button onClick={() => setShowForm(!showForm)}
+          className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-full font-medium">
           {showForm ? 'ביטול' : '+ הוסף'}
         </button>
       </div>
 
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
         <p className="text-gray-400 text-xs mb-1">סה״כ מושקע נטו</p>
-        <p className="font-bold text-gray-800 text-xl">{fmt(netTotal)}</p>
+        <p className="font-bold text-gray-800 text-xl">{fmtIls(netTotal)}</p>
       </div>
 
       {showForm && (
@@ -72,27 +84,28 @@ export default function DepositsPage() {
               <label className="text-xs text-gray-500 mb-1 block">תאריך</label>
               <input type="date" required
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                value={form.date}
-                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-              />
+                value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+              {ratePreview && (
+                <p className="text-xs text-gray-400 mt-1">
+                  שער ₪/$ באותו יום: ₪{ratePreview.toFixed(3)}
+                </p>
+              )}
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">סכום בשקלים (שלילי = משיכה)</label>
               <input type="number" step="any" required
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                placeholder="5000"
-                value={form.amount_ils}
-                onChange={e => setForm(f => ({ ...f, amount_ils: e.target.value }))}
-              />
+                placeholder="5000" value={form.amount_ils}
+                onChange={e => setForm(f => ({ ...f, amount_ils: e.target.value }))} />
+              {usdPreview != null && (
+                <p className="text-xs text-indigo-500 mt-1">≈ {fmtUsd(usdPreview)}</p>
+              )}
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">הערה</label>
-              <input
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                placeholder="לדוגמה: BTC"
-                value={form.note}
-                onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-              />
+              <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                placeholder="לדוגמה: BTC" value={form.note}
+                onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
             </div>
           </div>
           <button type="submit" disabled={saving}
@@ -116,13 +129,18 @@ export default function DepositsPage() {
                 {deposit.note && <p className="text-sm text-gray-700 font-medium">{deposit.note}</p>}
               </div>
               <div className="flex items-center gap-3">
-                <span className={`font-semibold text-sm ${isWithdrawal ? 'text-red-500' : 'text-green-600'}`}>
-                  {isWithdrawal ? '' : '+'}{fmt(deposit.amount_ils ?? 0)}
-                </span>
+                <div className="text-right">
+                  <p className={`font-semibold text-sm ${isWithdrawal ? 'text-red-500' : 'text-green-600'}`}>
+                    {isWithdrawal ? '' : '+'}{fmtIls(deposit.amount_ils ?? 0)}
+                  </p>
+                  {deposit.amount_usd != null && (
+                    <p className={`text-xs ${isWithdrawal ? 'text-red-400' : 'text-gray-400'}`}>
+                      {isWithdrawal ? '' : '+'}{fmtUsd(deposit.amount_usd)}
+                    </p>
+                  )}
+                </div>
                 <button onClick={() => handleDelete(deposit.id)}
-                  className="text-xs text-red-400 bg-red-50 px-2 py-1 rounded-full">
-                  מחק
-                </button>
+                  className="text-xs text-red-400 bg-red-50 px-2 py-1 rounded-full">מחק</button>
               </div>
             </div>
           );
@@ -132,15 +150,11 @@ export default function DepositsPage() {
   );
 }
 
-function todayStr() {
-  return new Date().toISOString().split('T')[0];
-}
+function todayStr() { return new Date().toISOString().split('T')[0]; }
 
 function formatDate(d: string | Date | unknown) {
   if (d instanceof Date) {
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    return `${day}/${month}/${d.getFullYear()}`;
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
   }
   const match = String(d).match(/(\d{4})-(\d{2})-(\d{2})/);
   if (match) return `${match[3]}/${match[2]}/${match[1]}`;
