@@ -26,12 +26,16 @@ export default function PortfolioSummary({ assets, pricesData, currency }: Props
 
   for (const asset of assets) {
     const isManual = asset.type === 'other';
-    // Manual assets: use avg_cost as current price (no live feed)
-    const price = isManual
-      ? asset.avg_cost_usd
-      : (prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0);
-    totalCurrentUsd += price * asset.quantity;
-    totalCostUsd += asset.avg_cost_usd * asset.quantity;
+    if (isManual) {
+      // avg_cost_usd stores ILS amount directly — no rate conversion needed
+      const ils = asset.avg_cost_usd * asset.quantity;
+      totalCurrentUsd += ils / usdToIls;
+      totalCostUsd += ils / usdToIls;
+    } else {
+      const price = prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0;
+      totalCurrentUsd += price * asset.quantity;
+      totalCostUsd += asset.avg_cost_usd * asset.quantity;
+    }
   }
 
   const totalCurrentIls = totalCurrentUsd * usdToIls;

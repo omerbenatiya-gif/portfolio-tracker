@@ -19,13 +19,16 @@ export default function AllocationChart({ assets, pricesData }: Props) {
     );
   }
 
-  const { prices } = pricesData;
+  const { prices, usdToIls } = pricesData;
 
   const data = assets.map((asset, i) => {
-    const price = prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0;
+    const isManual = asset.type === 'other';
+    const valueUsd = isManual
+      ? (asset.avg_cost_usd * asset.quantity) / usdToIls
+      : (prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0) * asset.quantity;
     return {
       name: asset.ticker.toUpperCase(),
-      value: price * asset.quantity,
+      value: valueUsd,
       color: COLORS[i % COLORS.length],
     };
   }).filter(d => d.value > 0);

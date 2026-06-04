@@ -27,11 +27,13 @@ export default function AssetRow({ asset, pricesData, currency }: Props) {
   const isManual = asset.type === 'other';
 
   const priceData = pricesData?.prices[asset.ticker.toUpperCase()];
-  // For manual assets, use avg_cost_usd as the "current" price (no live feed)
-  const currentPrice = isManual ? asset.avg_cost_usd : (priceData?.priceUsd ?? 0);
   const change24h = isManual ? null : (priceData?.changePercent24h ?? 0);
-  const currentValue = currentPrice * asset.quantity;
-  const costBasis = asset.avg_cost_usd * asset.quantity;
+  // For manual assets: avg_cost_usd stores ILS amount directly
+  const currentValueIls = isManual
+    ? asset.avg_cost_usd * asset.quantity
+    : (priceData?.priceUsd ?? 0) * asset.quantity * usdToIls;
+  const currentValue = currentValueIls / usdToIls;
+  const costBasis = isManual ? currentValue : asset.avg_cost_usd * asset.quantity;
   const pnl = currentValue - costBasis;
   const pnlPercent = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
   const isPositive = pnl >= 0;
@@ -65,7 +67,7 @@ export default function AssetRow({ asset, pricesData, currency }: Props) {
 
       <div className="flex items-center justify-between text-sm">
         <div className="text-gray-400 text-xs">
-          {isManual ? 'עלות השקעה' : `${asset.quantity} יח׳ × ${fmtUsd(currentPrice)}`}
+          {isManual ? 'עלות השקעה' : `${asset.quantity} יח׳ × ${fmtUsd(priceData?.priceUsd ?? 0)}`}
         </div>
         <div className="flex gap-3 text-right">
           {!isManual && change24h !== null && (

@@ -14,10 +14,8 @@ export async function GET(req: Request) {
   await sql`DELETE FROM deposits`;
   await sql`DELETE FROM assets`;
 
-  // Fixed rate used to store ILS amounts as USD (display will reconvert back)
-  const R = 3.65;
-
-  // ── ASSETS (total ILS invested per asset from spreadsheet summary) ────────
+  // For "other" type: avg_cost_usd stores the ILS amount directly (no conversion).
+  // Display: ILS = avg_cost_usd × 1, USD = avg_cost_usd / usdToIls
   const assets = [
     { name: 'ביטקוין',                   ticker: 'BTC',      type: 'other', qty: 1, ils: 49000    },
     { name: 'אית׳ריום',                   ticker: 'ETH',      type: 'other', qty: 1, ils: 10000    },
@@ -31,7 +29,7 @@ export async function GET(req: Request) {
   for (const a of assets) {
     await sql`
       INSERT INTO assets (name, ticker, type, quantity, avg_cost_usd)
-      VALUES (${a.name}, ${a.ticker}, ${a.type}, ${a.qty}, ${+(a.ils / R).toFixed(2)})
+      VALUES (${a.name}, ${a.ticker}, ${a.type}, ${a.qty}, ${a.ils})
     `;
   }
 
