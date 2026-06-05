@@ -147,7 +147,7 @@ export default function GrowthChart({ snapshots, currency, currentValueIls, cost
             tickLine={false}
           />
           <Tooltip content={<CustomTooltip symbol={symbol} />} />
-          <ReferenceLine y={first} stroke="#e5e7eb" strokeDasharray="4 4" />
+          <ReferenceLine y={headerCost} stroke="#e5e7eb" strokeDasharray="4 4" />
           <Area
             type="monotone"
             dataKey="value"

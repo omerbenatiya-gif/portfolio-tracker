@@ -5,6 +5,13 @@ import { Deposit } from '@/lib/types';
 
 const EMPTY_FORM = { date: '', amount_ils: '', note: '' };
 
+function normalizeNote(note: string) {
+  return note
+    .replace(/^(משיכה|מכירה):\s*/u, '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim();
+}
+
 export default function DepositsPage() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [form, setForm] = useState({ ...EMPTY_FORM, date: todayStr() });
@@ -50,14 +57,6 @@ export default function DepositsPage() {
     if (!confirm('למחוק רשומה זו?')) return;
     await fetch(`/api/deposits/${id}`, { method: 'DELETE' });
     loadDeposits();
-  }
-
-  // Normalize note: strip "משיכה: "/"מכירה: " prefix and trailing "(כלל)" etc.
-  function normalizeNote(note: string) {
-    return note
-      .replace(/^(משיכה|מכירה):\s*/u, '')
-      .replace(/\s*\([^)]*\)\s*$/, '')
-      .trim();
   }
 
   // Unique normalized asset names for filter
