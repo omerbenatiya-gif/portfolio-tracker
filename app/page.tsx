@@ -36,7 +36,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 60_000);
+    const interval = setInterval(fetchAll, 30_000);
     return () => clearInterval(interval);
   }, [fetchAll]);
 
@@ -63,7 +63,7 @@ export default function DashboardPage() {
 
         {lastUpdated && (
           <p className="text-gray-400 text-xs mb-4">
-            עודכן: {lastUpdated.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+            עודכן: {lastUpdated.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </p>
         )}
 
