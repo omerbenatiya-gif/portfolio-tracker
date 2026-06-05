@@ -109,7 +109,7 @@ export default function ChatPage() {
           onKeyDown={handleKeyDown}
           placeholder="כתוב כאן... (Enter לשליחה, Shift+Enter לשורה חדשה)"
           disabled={loading}
-          className="flex-1 border border-gray-200 rounded-2xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50 max-h-32 overflow-y-auto"
+          className="flex-1 border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50 max-h-32 overflow-y-auto"
           style={{ direction: 'rtl' }}
         />
         <button
