@@ -21,6 +21,7 @@ export default function UpdatePage() {
   const [amount, setAmount] = useState('');
   const [ratePreview, setRatePreview] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [inputCurrency, setInputCurrency] = useState<'ILS' | 'USD'>('USD');
 
   // New asset form
   const [newName, setNewName] = useState('');
@@ -202,10 +203,8 @@ export default function UpdatePage() {
   }
 
   if (step === 'form' && selected) {
-    const isIls = selected.type === 'other';
+    const isIls = inputCurrency === 'ILS';
     const amountNum = parseFloat(amount) || 0;
-    // isIls: הזנה בשקלים, preview בדולר
-    // !isIls: הזנה בדולר, preview בשקלים
     const ilsPreview = !isIls && ratePreview && amount ? amountNum * ratePreview : null;
     const usdPreview = isIls && ratePreview && amount ? amountNum / ratePreview : null;
 
@@ -244,9 +243,19 @@ export default function UpdatePage() {
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">
-              {isIls ? 'סכום בשקלים (₪)' : 'סכום בדולר ($)'}
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-gray-500">סכום</label>
+              <div className="flex bg-gray-100 rounded-lg p-0.5">
+                <button onClick={() => { setInputCurrency('ILS'); setAmount(''); }}
+                  className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${inputCurrency === 'ILS' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}>
+                  ₪ שקל
+                </button>
+                <button onClick={() => { setInputCurrency('USD'); setAmount(''); }}
+                  className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${inputCurrency === 'USD' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}>
+                  $ דולר
+                </button>
+              </div>
+            </div>
             <input type="number" step="any"
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-indigo-300"
               placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} />
@@ -277,7 +286,7 @@ export default function UpdatePage() {
 
       <div className="flex flex-col gap-2">
         {assets.map(asset => (
-          <button key={asset.id} onClick={() => { setSelected(asset); setStep('form'); }}
+          <button key={asset.id} onClick={() => { setSelected(asset); setInputCurrency(asset.type === 'other' ? 'ILS' : 'USD'); setStep('form'); }}
             className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between text-right">
             <div>
               <p className="font-medium text-gray-800 text-sm">{asset.name}</p>
