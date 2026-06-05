@@ -36,6 +36,9 @@ const SYSTEM_PROMPT = `אתה עוזר אישי לניהול תיק השקעות
 אם המשתמש לא ציין מספר מניות או מחיר — שאל לפני שאתה מעדכן.
 אל תנחש טיקרים — השתמש בטיקרים הסטנדרטיים המוכרים.
 
+## מחיקה
+לפני כל מחיקה: קרא תחילה ל-list_assets או ל-list_deposits כדי לקבל את ה-id המדויק, ורק אז מחק.
+
 ענה תמיד בעברית. אחרי כל פעולה סכם מה עשית בצורה ברורה עם מספרים.`;
 
 const tools: Groq.Chat.ChatCompletionTool[] = [
@@ -113,13 +116,14 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'delete_asset',
-      description: 'מוחק נכס מהתיק לפי id',
+      description: 'מוחק נכס מהתיק לפי id. חובה לקרוא ל-list_assets קודם כדי לקבל את ה-id',
       parameters: {
         type: 'object',
         properties: {
-          id: { type: 'number', description: 'מזהה הנכס למחיקה' },
+          id: { type: 'integer', description: 'מזהה הנכס למחיקה (מספר שלם)' },
         },
         required: ['id'],
+        additionalProperties: false,
       },
     },
   },
@@ -127,13 +131,14 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'delete_deposit',
-      description: 'מוחק הפקדה/משיכה לפי id',
+      description: 'מוחק הפקדה/משיכה לפי id. חובה לקרוא ל-list_deposits קודם כדי לקבל את ה-id',
       parameters: {
         type: 'object',
         properties: {
-          id: { type: 'number', description: 'מזהה ההפקדה למחיקה' },
+          id: { type: 'integer', description: 'מזהה ההפקדה למחיקה (מספר שלם)' },
         },
         required: ['id'],
+        additionalProperties: false,
       },
     },
   },
