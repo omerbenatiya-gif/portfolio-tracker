@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, ReferenceLine,
@@ -12,6 +13,10 @@ interface Props {
 }
 
 const HEBREW_MONTHS = ['ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יוני', 'יולי', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ'];
+
+function getYear(dateStr: string) {
+  return String(dateStr).slice(0, 4);
+}
 
 function formatDate(dateStr: string) {
   const m = String(dateStr).match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -36,6 +41,11 @@ function CustomTooltip({ active, payload, label, symbol }: {
 
 export default function GrowthChart({ snapshots, currency }: Props) {
   const symbol = currency === 'ILS' ? '₪' : '$';
+  const currentYear = String(new Date().getFullYear());
+
+  // Get unique years that have data, sorted descending
+  const years = [...new Set(snapshots.map(s => getYear(String(s.date))))].sort().reverse();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
   if (snapshots.length < 2) {
     return (
@@ -45,7 +55,21 @@ export default function GrowthChart({ snapshots, currency }: Props) {
     );
   }
 
-  const data = snapshots.map(s => ({
+  // Filter to selected year
+  const yearSnaps = snapshots.filter(s => getYear(String(s.date)) === selectedYear);
+
+  if (yearSnaps.length < 1) {
+    return (
+      <div className="bg-white rounded-2xl p-5 shadow-sm mb-3">
+        <YearTabs years={years} selected={selectedYear} onChange={setSelectedYear} />
+        <div className="h-36 flex items-center justify-center">
+          <p className="text-gray-400 text-sm">אין נתונים לשנה {selectedYear}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const data = yearSnaps.map(s => ({
     dateRaw: String(s.date),
     date: formatDate(String(s.date)),
     value: currency === 'ILS' ? Math.round(s.total_value_ils) : Math.round(s.total_value_usd),
@@ -56,24 +80,26 @@ export default function GrowthChart({ snapshots, currency }: Props) {
   const change = last - first;
   const changePct = first > 0 ? (change / first) * 100 : 0;
   const isPositive = change >= 0;
+  const color = isPositive ? '#10b981' : '#f43f5e';
 
   const minVal = Math.min(...data.map(d => d.value));
   const maxVal = Math.max(...data.map(d => d.value));
-  const padding = (maxVal - minVal) * 0.15 || maxVal * 0.1;
+  const padding = (maxVal - minVal) * 0.2 || maxVal * 0.1;
   const yMin = Math.max(0, Math.floor((minVal - padding) / 1000) * 1000);
   const yMax = Math.ceil((maxVal + padding) / 1000) * 1000;
 
-  const color = isPositive ? '#10b981' : '#f43f5e';
-
-  // Show only a subset of date labels to avoid crowding
   const labelInterval = Math.max(1, Math.floor(data.length / 5));
+
+  const isCurrentYear = selectedYear === currentYear;
 
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm mb-3">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+      {/* Header row */}
+      <div className="flex items-start justify-between mb-3">
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">צמיחת תיק לאורך זמן</p>
+          <p className="text-xs text-gray-400 mb-0.5">
+            {isCurrentYear ? `ינואר – היום (${selectedYear})` : `כל שנת ${selectedYear}`}
+          </p>
           <p className="text-xl font-bold text-gray-800">{symbol}{last.toLocaleString()}</p>
         </div>
         <div className={`text-right px-3 py-1.5 rounded-xl ${isPositive ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -85,6 +111,11 @@ export default function GrowthChart({ snapshots, currency }: Props) {
           </p>
         </div>
       </div>
+
+      {/* Year tabs — only show if more than one year */}
+      {years.length > 1 && (
+        <YearTabs years={years} selected={selectedYear} onChange={setSelectedYear} />
+      )}
 
       {/* Chart */}
       <ResponsiveContainer width="100%" height={160}>
@@ -125,12 +156,36 @@ export default function GrowthChart({ snapshots, currency }: Props) {
         </AreaChart>
       </ResponsiveContainer>
 
-      {/* Footer: period info */}
+      {/* Footer */}
       <div className="flex justify-between mt-2 text-xs text-gray-400">
         <span>מ-{formatDate(data[0].dateRaw)}</span>
-        <span>{data.length} נקודות נתון</span>
+        <span>{data.length} ימים</span>
         <span>עד {formatDate(data[data.length - 1].dateRaw)}</span>
       </div>
+    </div>
+  );
+}
+
+function YearTabs({ years, selected, onChange }: {
+  years: string[];
+  selected: string;
+  onChange: (y: string) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 mb-3">
+      {years.map(y => (
+        <button
+          key={y}
+          onClick={() => onChange(y)}
+          className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+            selected === y
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-100 text-gray-500'
+          }`}
+        >
+          {y}
+        </button>
+      ))}
     </div>
   );
 }
