@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI, FunctionDeclaration, Tool, FunctionCall, SchemaType } from '@google/generative-ai';
 import { getDb, initSchema } from '@/lib/db';
 import { fetchUsdToIls } from '@/lib/prices';
 
-const client = new Anthropic();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 const SYSTEM_PROMPT = `אתה עוזר אישי לניהול תיק השקעות. יש לך גישה מלאה למסד הנתונים של המשתמש ואתה יכול לקרוא ולעדכן נתונים.
 
@@ -18,35 +18,35 @@ const SYSTEM_PROMPT = `אתה עוזר אישי לניהול תיק השקעות
 4. תמיד בסוף הפעולות קרא ל-refresh_snapshot כדי לעדכן את הסנפשוט היומי
 
 דוגמאות לפעולות:
-- "קניתי 5 מניות AAPL במחיר $200" → עדכן quantity ו-avg_cost_usd של AAPL + הוסף פקדון
-- "הפקדתי 5000₪ לקרן ההשתלמות" → הוסף פקדון + עדכן את avg_cost_usd של הנכס
+- "קניתי 5 מניות AAPL במחיר 200 דולר" → עדכן quantity ו-avg_cost_usd של AAPL + הוסף פקדון
+- "הפקדתי 5000 שקל לקרן ההשתלמות" → הוסף פקדון + עדכן שווי הנכס
 - דוח קרן השתלמות → עדכן avg_cost_usd=שווי נוכחי ו-cost_ils=סכום שהופקד
 
 ענה תמיד בעברית. אחרי כל פעולה סכם מה עשית בצורה ברורה עם מספרים.`;
 
-const tools: Anthropic.Tool[] = [
+const functionDeclarations: FunctionDeclaration[] = [
   {
     name: 'list_assets',
     description: 'מחזיר את כל הנכסים בתיק עם כל הפרטים',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
+    parameters: { type: SchemaType.OBJECT, properties: {}, required: [] },
   },
   {
     name: 'list_deposits',
     description: 'מחזיר את 30 הפקדות/משיכות האחרונות',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
+    parameters: { type: SchemaType.OBJECT, properties: {}, required: [] },
   },
   {
     name: 'update_asset',
     description: 'מעדכן נכס קיים בתיק',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        id: { type: 'number', description: 'מזהה הנכס' },
-        name: { type: 'string', description: 'שם הנכס' },
-        ticker: { type: 'string', description: 'טיקר' },
-        quantity: { type: 'number', description: 'כמות יחידות' },
-        avg_cost_usd: { type: 'number', description: 'מחיר קנייה ממוצע בדולר (לנכס other: שווי נוכחי בשקלים)' },
-        cost_ils: { type: 'number', description: 'עלות מקורית בשקלים' },
+        id: { type: SchemaType.NUMBER, description: 'מזהה הנכס' },
+        name: { type: SchemaType.STRING, description: 'שם הנכס' },
+        ticker: { type: SchemaType.STRING, description: 'טיקר' },
+        quantity: { type: SchemaType.NUMBER, description: 'כמות יחידות' },
+        avg_cost_usd: { type: SchemaType.NUMBER, description: 'מחיר קנייה ממוצע בדולר (לנכס other: שווי נוכחי בשקלים)' },
+        cost_ils: { type: SchemaType.NUMBER, description: 'עלות מקורית בשקלים' },
       },
       required: ['id'],
     },
@@ -54,15 +54,15 @@ const tools: Anthropic.Tool[] = [
   {
     name: 'create_asset',
     description: 'יוצר נכס חדש בתיק',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        name: { type: 'string', description: 'שם הנכס' },
-        ticker: { type: 'string', description: 'טיקר (לדוגמה: AAPL, BTC)' },
-        type: { type: 'string', enum: ['crypto', 'stock', 'etf', 'other'], description: 'סוג הנכס' },
-        quantity: { type: 'number', description: 'כמות יחידות' },
-        avg_cost_usd: { type: 'number', description: 'מחיר קנייה ממוצע בדולר (לנכס other: שווי בשקלים)' },
-        cost_ils: { type: 'number', description: 'עלות מקורית בשקלים (אופציונלי)' },
+        name: { type: SchemaType.STRING, description: 'שם הנכס' },
+        ticker: { type: SchemaType.STRING, description: 'טיקר' },
+        type: { type: SchemaType.STRING, description: 'סוג: crypto, stock, etf, או other' },
+        quantity: { type: SchemaType.NUMBER, description: 'כמות יחידות' },
+        avg_cost_usd: { type: SchemaType.NUMBER, description: 'מחיר קנייה ממוצע בדולר (לנכס other: שווי בשקלים)' },
+        cost_ils: { type: SchemaType.NUMBER, description: 'עלות מקורית בשקלים' },
       },
       required: ['name', 'ticker', 'type', 'quantity', 'avg_cost_usd'],
     },
@@ -70,12 +70,12 @@ const tools: Anthropic.Tool[] = [
   {
     name: 'add_deposit',
     description: 'מוסיף הפקדה או משיכה (סכום שלילי = משיכה)',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        date: { type: 'string', description: 'תאריך בפורמט YYYY-MM-DD' },
-        amount_ils: { type: 'number', description: 'סכום בשקלים (שלילי = משיכה)' },
-        note: { type: 'string', description: 'הערה, לרוב שם הנכס' },
+        date: { type: SchemaType.STRING, description: 'תאריך בפורמט YYYY-MM-DD' },
+        amount_ils: { type: SchemaType.NUMBER, description: 'סכום בשקלים (שלילי = משיכה)' },
+        note: { type: SchemaType.STRING, description: 'הערה, לרוב שם הנכס' },
       },
       required: ['date', 'amount_ils'],
     },
@@ -83,11 +83,15 @@ const tools: Anthropic.Tool[] = [
   {
     name: 'refresh_snapshot',
     description: 'מעדכן את הסנפשוט היומי של התיק — קרא לזה בסוף כל עדכון',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
+    parameters: { type: SchemaType.OBJECT, properties: {}, required: [] },
   },
 ];
 
-async function executeTool(name: string, input: Record<string, unknown>): Promise<unknown> {
+const tools: Tool[] = [{ functionDeclarations }];
+
+async function executeTool(call: FunctionCall): Promise<unknown> {
+  const { name, args } = call;
+  const input = (args ?? {}) as Record<string, unknown>;
   const sql = getDb();
   await initSchema();
 
@@ -100,14 +104,16 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
   }
 
   if (name === 'update_asset') {
-    const { id, ...fields } = input as { id: number; name?: string; ticker?: string; quantity?: number; avg_cost_usd?: number; cost_ils?: number };
+    const { id, name: n, ticker, quantity, avg_cost_usd, cost_ils } = input as {
+      id: number; name?: string; ticker?: string; quantity?: number; avg_cost_usd?: number; cost_ils?: number;
+    };
     const rows = await sql`
       UPDATE assets SET
-        name = COALESCE(${fields.name ?? null}, name),
-        ticker = COALESCE(${fields.ticker ?? null}, ticker),
-        quantity = COALESCE(${fields.quantity ?? null}, quantity),
-        avg_cost_usd = COALESCE(${fields.avg_cost_usd ?? null}, avg_cost_usd),
-        cost_ils = COALESCE(${fields.cost_ils ?? null}, cost_ils)
+        name = COALESCE(${n ?? null}, name),
+        ticker = COALESCE(${ticker ?? null}, ticker),
+        quantity = COALESCE(${quantity ?? null}, quantity),
+        avg_cost_usd = COALESCE(${avg_cost_usd ?? null}, avg_cost_usd),
+        cost_ils = COALESCE(${cost_ils ?? null}, cost_ils)
       WHERE id = ${id}
       RETURNING *
     `;
@@ -182,45 +188,48 @@ export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json();
 
-    let currentMessages: Anthropic.MessageParam[] = messages;
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      systemInstruction: SYSTEM_PROMPT,
+      tools,
+    });
 
+    // Build history (all but last message)
+    const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+
+    const chat = model.startChat({ history });
+    const lastMessage = messages[messages.length - 1].content;
+
+    let result = await chat.sendMessage(lastMessage);
+
+    // Handle tool calls in a loop
     while (true) {
-      const response = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
-        system: SYSTEM_PROMPT,
-        tools,
-        messages: currentMessages,
-      });
+      const response = result.response;
+      const parts = response.candidates?.[0]?.content?.parts ?? [];
+      const functionCalls = parts.filter(p => p.functionCall).map(p => p.functionCall as FunctionCall);
 
-      if (response.stop_reason === 'end_turn') {
-        const textBlock = response.content.find(b => b.type === 'text');
-        return NextResponse.json({ reply: (textBlock as Anthropic.TextBlock)?.text ?? '' });
+      if (functionCalls.length === 0) {
+        const text = response.text();
+        return NextResponse.json({ reply: text });
       }
 
-      if (response.stop_reason === 'tool_use') {
-        const toolUseBlocks = response.content.filter(b => b.type === 'tool_use') as Anthropic.ToolUseBlock[];
+      // Execute all function calls
+      const functionResponses = await Promise.all(
+        functionCalls.map(async (call) => {
+          const output = await executeTool(call);
+          return {
+            functionResponse: {
+              name: call.name,
+              response: { result: JSON.stringify(output) },
+            },
+          };
+        })
+      );
 
-        const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
-          toolUseBlocks.map(async (block) => {
-            const result = await executeTool(block.name, block.input as Record<string, unknown>);
-            return {
-              type: 'tool_result' as const,
-              tool_use_id: block.id,
-              content: JSON.stringify(result),
-            };
-          })
-        );
-
-        currentMessages = [
-          ...currentMessages,
-          { role: 'assistant' as const, content: response.content },
-          { role: 'user' as const, content: toolResults },
-        ];
-        continue;
-      }
-
-      return NextResponse.json({ reply: 'סיום לא צפוי' });
+      result = await chat.sendMessage(functionResponses);
     }
   } catch (err) {
     console.error(err);
