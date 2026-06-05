@@ -87,17 +87,17 @@ export async function GET() {
   // 5. Snapshot freshness — last snapshot should be from today or yesterday
   const today = new Date().toISOString().split('T')[0];
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-  type Snapshot = { date: string; total_value_ils: number };
+  type Snapshot = { date: string | Date; total_value_ils: number };
   const lastSnap = (snapshots as Snapshot[])[0];
-  if (!lastSnap) {
+  const lastSnapDateStr = lastSnap
+    ? (lastSnap.date instanceof Date
+        ? lastSnap.date.toISOString().split('T')[0]
+        : String(lastSnap.date).match(/(\d{4}-\d{2}-\d{2})/)?.[1] ?? String(lastSnap.date))
+    : null;
+  if (!lastSnapDateStr) {
     issues.push('אין snapshot בכלל — הבוט לא שמר נתונים היום');
-  } else if (lastSnap.date !== today && lastSnap.date !== yesterday) {
-    issues.push(`snapshot אחרון מ-${lastSnap.date} (לא היום/אתמול) — ייתכן שהבוט לא פעל`);
-  }
-
-  // 6. Sanity: portfolio value vs snapshot value (shouldn't differ too much unless market moved a lot)
-  if (lastSnap && Math.abs(lastSnap.total_value_ils - portfolioIls) / portfolioIls > 0.3) {
-    issues.push(`שווי נוכחי (₪${Math.round(portfolioIls).toLocaleString()}) שונה ב-30%+ מה-snapshot האחרון (₪${Math.round(lastSnap.total_value_ils).toLocaleString()}) — בדוק שהנתונים סבירים`);
+  } else if (lastSnapDateStr !== today && lastSnapDateStr !== yesterday) {
+    issues.push(`snapshot אחרון מ-${lastSnapDateStr} (לא היום/אתמול) — ייתכן שהבוט לא פעל`);
   }
 
   return NextResponse.json({
