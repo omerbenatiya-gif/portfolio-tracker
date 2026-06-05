@@ -10,6 +10,8 @@ import { PortfolioSnapshot } from '@/lib/types';
 interface Props {
   snapshots: PortfolioSnapshot[];
   currency: 'ILS' | 'USD';
+  currentValueIls?: number;
+  costBasisIls?: number;
 }
 
 const HEBREW_MONTHS = ['ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יוני', 'יולי', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ'];
@@ -39,7 +41,7 @@ function CustomTooltip({ active, payload, label, symbol }: {
   );
 }
 
-export default function GrowthChart({ snapshots, currency }: Props) {
+export default function GrowthChart({ snapshots, currency, currentValueIls, costBasisIls }: Props) {
   const symbol = currency === 'ILS' ? '₪' : '$';
   const currentYear = String(new Date().getFullYear());
 
@@ -75,10 +77,12 @@ export default function GrowthChart({ snapshots, currency }: Props) {
     value: currency === 'ILS' ? Math.round(s.total_value_ils) : Math.round(s.total_value_usd),
   }));
 
-  const first = data[0].value;
   const last = data[data.length - 1].value;
-  const change = last - first;
-  const changePct = first > 0 ? (change / first) * 100 : 0;
+  // Use actual cost basis for return % — not first snapshot (which may be stale/incomplete)
+  const headerValue = currentValueIls ?? last;
+  const headerCost = costBasisIls ?? data[0].value;
+  const change = headerValue - headerCost;
+  const changePct = headerCost > 0 ? (change / headerCost) * 100 : 0;
   const isPositive = change >= 0;
   const color = isPositive ? '#10b981' : '#f43f5e';
 
@@ -100,7 +104,7 @@ export default function GrowthChart({ snapshots, currency }: Props) {
           <p className="text-xs text-gray-400 mb-0.5">
             {isCurrentYear ? `ינואר – היום (${selectedYear})` : `כל שנת ${selectedYear}`}
           </p>
-          <p className="text-xl font-bold text-gray-800">{symbol}{last.toLocaleString()}</p>
+          <p className="text-xl font-bold text-gray-800">{symbol}{Math.round(headerValue).toLocaleString()}</p>
         </div>
         <div className={`text-right px-3 py-1.5 rounded-xl ${isPositive ? 'bg-green-50' : 'bg-red-50'}`}>
           <p className={`text-sm font-bold ${isPositive ? 'text-green-600' : 'text-red-500'}`}>

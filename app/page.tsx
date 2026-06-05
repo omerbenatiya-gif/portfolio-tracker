@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import PortfolioSummary from '@/components/PortfolioSummary';
+import PortfolioSummary, { getAssetValueIls } from '@/components/PortfolioSummary';
 import AssetRow from '@/components/AssetRow';
 import AllocationChart from '@/components/AllocationChart';
 import GrowthChart from '@/components/GrowthChart';
@@ -69,7 +69,16 @@ export default function DashboardPage() {
 
         <PortfolioSummary assets={assets} pricesData={pricesData} currency="ILS" />
         <AllocationChart assets={assets} pricesData={pricesData} />
-        <GrowthChart snapshots={snapshots} currency="ILS" />
+        <GrowthChart
+          snapshots={snapshots}
+          currency="ILS"
+          currentValueIls={assets.reduce((s, a) => s + getAssetValueIls(a, pricesData), 0)}
+          costBasisIls={assets.reduce((s, a) => {
+            if (a.cost_ils != null) return s + a.cost_ils;
+            if (a.type === 'other') return s + a.avg_cost_usd * a.quantity;
+            return s + a.avg_cost_usd * a.quantity * (pricesData?.usdToIls ?? 3.65);
+          }, 0)}
+        />
 
         <h2 className="font-semibold text-gray-700 mb-3 text-sm">נכסים בתיק</h2>
         {assets.length === 0 ? (
