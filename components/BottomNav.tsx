@@ -33,10 +33,19 @@ function IconWallet({ active }: { active: boolean }) {
   );
 }
 
+function IconChat({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
 const links = [
   { href: '/', label: 'תיק', Icon: IconChart },
   { href: '/assets', label: 'נכסים', Icon: IconBriefcase },
   { href: '/deposits', label: 'פקדונות', Icon: IconWallet },
+  { href: '/chat', label: 'עדכן', Icon: IconChat },
 ];
 
 export default function BottomNav() {
