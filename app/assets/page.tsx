@@ -56,10 +56,15 @@ export default function AssetsPage() {
 
   function calcAsset(asset: Asset) {
     const isManual = asset.type === 'other';
-    // Use cost_ils (actual ILS paid) — falls back to avg_cost_usd for 'other' (stored as ILS)
-    const costIls = asset.cost_ils ?? (isManual ? asset.avg_cost_usd * asset.quantity : asset.avg_cost_usd * asset.quantity * usdToIls);
     const currentPriceUsd = isManual ? null : (pricesData?.prices[asset.ticker.toUpperCase()]?.priceUsd ?? 0);
-    const currentIls = isManual ? costIls : (currentPriceUsd ?? 0) * asset.quantity * usdToIls;
+    // For manual assets: avg_cost_usd stores the CURRENT ILS value (updated over time)
+    const currentIls = isManual
+      ? asset.avg_cost_usd * asset.quantity
+      : (currentPriceUsd ?? 0) * asset.quantity * usdToIls;
+    // cost_ils = original ILS invested; if missing, assume no change (cost = current)
+    const costIls = asset.cost_ils ?? (isManual
+      ? asset.avg_cost_usd * asset.quantity
+      : asset.avg_cost_usd * asset.quantity * usdToIls);
     const pnlIls = currentIls - costIls;
     const pnlPct = costIls > 0 ? (pnlIls / costIls) * 100 : 0;
     const change24h = isManual ? null : (pricesData?.prices[asset.ticker.toUpperCase()]?.changePercent24h ?? 0);
@@ -177,12 +182,12 @@ export default function AssetsPage() {
                       <p className="font-bold text-indigo-700 text-sm">{fmt(currentIls)}</p>
                       <p className="text-indigo-400 text-xs">{fmtUsd(currentIls / usdToIls)}</p>
                     </div>
-                    <div className={`rounded-xl p-3 text-center ${isProfit ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <div className={`rounded-xl p-3 text-center ${pnlIls > 0 ? 'bg-green-50' : pnlIls < 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
                       <p className="text-gray-400 text-xs mb-1">רווח/הפסד</p>
-                      <p className={`font-bold text-sm ${isProfit ? 'text-green-600' : 'text-red-500'}`}>
-                        {isManual ? '—' : `${isProfit ? '+' : ''}${pnlPct.toFixed(1)}%`}
+                      <p className={`font-bold text-sm ${pnlIls > 0 ? 'text-green-600' : pnlIls < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {pnlIls === 0 ? '—' : `${isProfit ? '+' : ''}${pnlPct.toFixed(1)}%`}
                       </p>
-                      {!isManual && (
+                      {pnlIls !== 0 && (
                         <p className={`text-xs ${isProfit ? 'text-green-500' : 'text-red-400'}`}>
                           {isProfit ? '+' : ''}{fmt(pnlIls)}
                         </p>
@@ -191,7 +196,7 @@ export default function AssetsPage() {
                   </div>
 
                   {/* Visual bar */}
-                  {!isManual && (
+                  {pnlIls !== 0 && (
                     <div className="mb-4">
                       <div className="flex justify-between text-xs text-gray-400 mb-1">
                         <span>עלות</span><span>שווי נוכחי</span>

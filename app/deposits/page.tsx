@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Deposit } from '@/lib/types';
 
 const EMPTY_FORM = { date: '', amount_ils: '', note: '' };
@@ -11,10 +11,11 @@ export default function DepositsPage() {
   const [ratePreview, setRatePreview] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'deposits' | 'withdrawals'>('all');
+  const [filterAsset, setFilterAsset] = useState<string>('all');
 
   useEffect(() => { loadDeposits(); }, []);
 
-  // Auto-fetch historical rate when date changes
   useEffect(() => {
     if (!form.date) return;
     fetch(`/api/exchange-rate?date=${form.date}`)
@@ -33,7 +34,6 @@ export default function DepositsPage() {
     setSaving(true);
     const amountIls = form.amount_ils ? parseFloat(form.amount_ils) : null;
     const amountUsd = (amountIls != null && ratePreview) ? +(amountIls / ratePreview).toFixed(2) : null;
-
     await fetch('/api/deposits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -52,7 +52,25 @@ export default function DepositsPage() {
     loadDeposits();
   }
 
+  // Unique asset names for filter
+  const assetOptions = useMemo(() => {
+    const notes = deposits.map(d => d.note).filter(Boolean) as string[];
+    return [...new Set(notes)].sort();
+  }, [deposits]);
+
+  // Filtered deposits
+  const filtered = useMemo(() => {
+    return deposits.filter(d => {
+      const amt = d.amount_ils ?? 0;
+      if (filterType === 'deposits' && amt <= 0) return false;
+      if (filterType === 'withdrawals' && amt >= 0) return false;
+      if (filterAsset !== 'all' && d.note !== filterAsset) return false;
+      return true;
+    });
+  }, [deposits, filterType, filterAsset]);
+
   const netTotal = deposits.reduce((s, d) => s + (d.amount_ils ?? 0), 0);
+  const filteredTotal = filtered.reduce((s, d) => s + (d.amount_ils ?? 0), 0);
   const amountIlsNum = form.amount_ils ? parseFloat(form.amount_ils) : null;
   const usdPreview = (amountIlsNum && ratePreview) ? amountIlsNum / ratePreview : null;
 
@@ -60,6 +78,8 @@ export default function DepositsPage() {
     new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n);
   const fmtUsd = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+
+  const isFiltered = filterType !== 'all' || filterAsset !== 'all';
 
   return (
     <div>
@@ -74,6 +94,44 @@ export default function DepositsPage() {
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
         <p className="text-gray-400 text-xs mb-1">סה״כ מושקע נטו</p>
         <p className="font-bold text-gray-800 text-xl">{fmtIls(netTotal)}</p>
+        {isFiltered && (
+          <p className="text-gray-400 text-xs mt-1">סינון: {fmtIls(filteredTotal)}</p>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="mb-4 flex flex-col gap-2">
+        <div className="flex gap-2">
+          {(['all', 'deposits', 'withdrawals'] as const).map(type => (
+            <button key={type}
+              onClick={() => setFilterType(type)}
+              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+                filterType === type
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-500 shadow-sm'
+              }`}>
+              {type === 'all' ? 'הכל' : type === 'deposits' ? 'הפקדות' : 'משיכות'}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setFilterAsset('all')}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+              filterAsset === 'all' ? 'bg-gray-700 text-white' : 'bg-white text-gray-500 shadow-sm'
+            }`}>
+            כל הנכסים
+          </button>
+          {assetOptions.map(note => (
+            <button key={note}
+              onClick={() => setFilterAsset(filterAsset === note ? 'all' : note)}
+              className={`text-xs px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+                filterAsset === note ? 'bg-gray-700 text-white' : 'bg-white text-gray-500 shadow-sm'
+              }`}>
+              {note}
+            </button>
+          ))}
+        </div>
       </div>
 
       {showForm && (
@@ -85,11 +143,7 @@ export default function DepositsPage() {
               <input type="date" required
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-              {ratePreview && (
-                <p className="text-xs text-gray-400 mt-1">
-                  שער ₪/$ באותו יום: ₪{ratePreview.toFixed(3)}
-                </p>
-              )}
+              {ratePreview && <p className="text-xs text-gray-400 mt-1">שער ₪/$ באותו יום: ₪{ratePreview.toFixed(3)}</p>}
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">סכום בשקלים (שלילי = משיכה)</label>
@@ -97,12 +151,10 @@ export default function DepositsPage() {
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 placeholder="5000" value={form.amount_ils}
                 onChange={e => setForm(f => ({ ...f, amount_ils: e.target.value }))} />
-              {usdPreview != null && (
-                <p className="text-xs text-indigo-500 mt-1">≈ {fmtUsd(usdPreview)}</p>
-              )}
+              {usdPreview != null && <p className="text-xs text-indigo-500 mt-1">≈ {fmtUsd(usdPreview)}</p>}
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">הערה</label>
+              <label className="text-xs text-gray-500 mb-1 block">הערה (שם הנכס)</label>
               <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 placeholder="לדוגמה: BTC" value={form.note}
                 onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
@@ -115,12 +167,12 @@ export default function DepositsPage() {
         </form>
       )}
 
-      {deposits.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl p-6 text-center shadow-sm">
-          <p className="text-gray-400">אין רשומות עדיין</p>
+          <p className="text-gray-400">אין רשומות</p>
         </div>
       ) : (
-        deposits.map(deposit => {
+        filtered.map(deposit => {
           const isWithdrawal = (deposit.amount_ils ?? 0) < 0;
           return (
             <div key={deposit.id} className="bg-white rounded-2xl px-4 py-3 shadow-sm mb-2 flex items-center justify-between">
