@@ -5,8 +5,24 @@ import { fetchCryptoPrices, fetchStockPrices, fetchUsdToIls } from '@/lib/prices
 export async function GET() {
   const sql = getDb();
   await initSchema();
-  const rows = await sql`SELECT * FROM portfolio_snapshots ORDER BY date ASC`;
+  // Exclude snapshots that are clearly wrong (< 100k when portfolio is likely > 100k)
+  // These were saved before manual assets were included in the calculation
+  const rows = await sql`
+    SELECT * FROM portfolio_snapshots
+    WHERE total_value_ils >= 100000
+    ORDER BY date ASC
+  `;
   return NextResponse.json(rows);
+}
+
+export async function DELETE() {
+  // One-time fix: remove snapshots saved before manual assets were included
+  const sql = getDb();
+  await initSchema();
+  const deleted = await sql`
+    DELETE FROM portfolio_snapshots WHERE total_value_ils < 100000 RETURNING date
+  `;
+  return NextResponse.json({ deleted: (deleted as { date: string }[]).map(r => r.date) });
 }
 
 export async function POST() {
