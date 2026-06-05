@@ -4,7 +4,7 @@ import { getDb, initSchema } from '@/lib/db';
 export async function GET() {
   const sql = getDb();
   await initSchema();
-  const rows = await sql`SELECT * FROM deposits ORDER BY date DESC`;
+  const rows = await sql`SELECT * FROM deposits ORDER BY date ASC, id ASC`;
   return NextResponse.json(rows);
 }
 

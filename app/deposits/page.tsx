@@ -52,19 +52,24 @@ export default function DepositsPage() {
     loadDeposits();
   }
 
-  // Unique asset names for filter
+  // Strip "משיכה: " / "מכירה: " prefixes to group same-asset records together
+  function normalizeNote(note: string) {
+    return note.replace(/^(משיכה|מכירה):\s*/u, '').trim();
+  }
+
+  // Unique normalized asset names for filter
   const assetOptions = useMemo(() => {
     const notes = deposits.map(d => d.note).filter(Boolean) as string[];
-    return [...new Set(notes)].sort();
+    return [...new Set(notes.map(normalizeNote))].sort();
   }, [deposits]);
 
-  // Filtered deposits
+  // Filtered deposits — match by normalized note
   const filtered = useMemo(() => {
     return deposits.filter(d => {
       const amt = d.amount_ils ?? 0;
       if (filterType === 'deposits' && amt <= 0) return false;
       if (filterType === 'withdrawals' && amt >= 0) return false;
-      if (filterAsset !== 'all' && d.note !== filterAsset) return false;
+      if (filterAsset !== 'all' && normalizeNote(d.note ?? '') !== filterAsset) return false;
       return true;
     });
   }, [deposits, filterType, filterAsset]);
@@ -101,20 +106,20 @@ export default function DepositsPage() {
 
       {/* Filters */}
       <div className="mb-4 flex flex-col gap-2">
+        {/* Row 1: type */}
         <div className="flex gap-2">
           {(['all', 'deposits', 'withdrawals'] as const).map(type => (
             <button key={type}
               onClick={() => setFilterType(type)}
               className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
-                filterType === type
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-500 shadow-sm'
+                filterType === type ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 shadow-sm'
               }`}>
               {type === 'all' ? 'הכל' : type === 'deposits' ? 'הפקדות' : 'משיכות'}
             </button>
           ))}
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        {/* Row 2: assets */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           <button
             onClick={() => setFilterAsset('all')}
             className={`text-xs px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
