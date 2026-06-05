@@ -94,6 +94,34 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'delete_asset',
+      description: 'מוחק נכס מהתיק לפי id',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'number', description: 'מזהה הנכס למחיקה' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_deposit',
+      description: 'מוחק הפקדה/משיכה לפי id',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'number', description: 'מזהה ההפקדה למחיקה' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'refresh_snapshot',
       description: 'מעדכן את הסנפשוט היומי של התיק — קרא לזה בסוף כל עדכון',
       parameters: { type: 'object', properties: {} },
@@ -152,6 +180,18 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
       RETURNING *
     `;
     return rows[0];
+  }
+
+  if (name === 'delete_asset') {
+    const { id } = args as { id: number };
+    const rows = await sql`DELETE FROM assets WHERE id = ${id} RETURNING *`;
+    return rows[0] ?? { error: 'not found' };
+  }
+
+  if (name === 'delete_deposit') {
+    const { id } = args as { id: number };
+    const rows = await sql`DELETE FROM deposits WHERE id = ${id} RETURNING *`;
+    return rows[0] ?? { error: 'not found' };
   }
 
   if (name === 'refresh_snapshot') {
