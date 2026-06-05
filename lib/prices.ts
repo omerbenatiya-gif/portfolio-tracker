@@ -40,36 +40,23 @@ export async function fetchStockPrices(tickers: string[]): Promise<Record<string
 
   const result: Record<string, PriceResult> = {};
 
-  try {
-    const symbols = tickers.join(',');
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=regularMarketPrice,regularMarketChangePercent,regularMarketPreviousClose`,
-      { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }, cache: 'no-store' }
-    );
-    if (!res.ok) throw new Error(`Yahoo error ${res.status}`);
-    const data = await res.json();
-    const quotes: Array<{
-      symbol: string;
-      regularMarketPrice?: number;
-      regularMarketChangePercent?: number;
-      regularMarketPreviousClose?: number;
-    }> = data?.quoteResponse?.result ?? [];
-
-    for (const q of quotes) {
-      const price = q.regularMarketPrice ?? 0;
-      const change = q.regularMarketChangePercent ?? 0;
-      result[q.symbol.toUpperCase()] = {
-        ticker: q.symbol.toUpperCase(),
-        priceUsd: price,
-        changePercent24h: change,
-      };
-    }
-  } catch {
-    // fallback: mark all as 0
-    for (const ticker of tickers) {
+  await Promise.all(tickers.map(async (ticker) => {
+    try {
+      const res = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=2d`,
+        { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' }
+      );
+      if (!res.ok) throw new Error(`Yahoo error ${res.status}`);
+      const data = await res.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      const price: number = meta?.regularMarketPrice ?? meta?.chartPreviousClose ?? 0;
+      const prevClose: number = meta?.chartPreviousClose ?? price;
+      const change = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
+      result[ticker.toUpperCase()] = { ticker: ticker.toUpperCase(), priceUsd: price, changePercent24h: change };
+    } catch {
       result[ticker.toUpperCase()] = { ticker: ticker.toUpperCase(), priceUsd: 0, changePercent24h: 0 };
     }
-  }
+  }));
 
   return result;
 }
