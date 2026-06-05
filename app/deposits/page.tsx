@@ -52,9 +52,12 @@ export default function DepositsPage() {
     loadDeposits();
   }
 
-  // Strip "משיכה: " / "מכירה: " prefixes to group same-asset records together
+  // Normalize note: strip "משיכה: "/"מכירה: " prefix and trailing "(כלל)" etc.
   function normalizeNote(note: string) {
-    return note.replace(/^(משיכה|מכירה):\s*/u, '').trim();
+    return note
+      .replace(/^(משיכה|מכירה):\s*/u, '')
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .trim();
   }
 
   // Unique normalized asset names for filter
