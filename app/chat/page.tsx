@@ -51,9 +51,22 @@ export default function UpdatePage() {
   async function handleSubmit() {
     if (!selected || !amount) return;
     setSaving(true);
-    const amountNum = parseFloat(amount);
-    const amount_ils = actionType === 'withdrawal' ? -amountNum : amountNum;
-    const amount_usd = ratePreview ? +(amount_ils / ratePreview).toFixed(2) : null;
+    const isIls = selected.type === 'other';
+    const inputNum = parseFloat(amount);
+    const sign = actionType === 'withdrawal' ? -1 : 1;
+
+    // חישוב סכום ILS ו-USD לפי סוג הנכס
+    let amount_ils: number;
+    let amount_usd: number | null;
+    if (isIls) {
+      // הזנה בשקלים
+      amount_ils = sign * inputNum;
+      amount_usd = ratePreview ? +(amount_ils / ratePreview).toFixed(2) : null;
+    } else {
+      // הזנה בדולר — ממיר לשקלים
+      amount_usd = sign * inputNum;
+      amount_ils = ratePreview ? +(amount_usd * ratePreview) : sign * inputNum * 3.65;
+    }
 
     await fetch('/api/deposits', {
       method: 'POST',
@@ -189,8 +202,13 @@ export default function UpdatePage() {
   }
 
   if (step === 'form' && selected) {
+    const isIls = selected.type === 'other';
     const amountNum = parseFloat(amount) || 0;
-    const usdPreview = ratePreview && amount ? amountNum / ratePreview : null;
+    // isIls: הזנה בשקלים, preview בדולר
+    // !isIls: הזנה בדולר, preview בשקלים
+    const ilsPreview = !isIls && ratePreview && amount ? amountNum * ratePreview : null;
+    const usdPreview = isIls && ratePreview && amount ? amountNum / ratePreview : null;
+
     return (
       <div>
         <div className="flex items-center gap-3 mb-5">
@@ -226,9 +244,13 @@ export default function UpdatePage() {
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">סכום בשקלים</label>
-            <input type="number" step="any" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            <label className="text-xs text-gray-500 mb-1 block">
+              {isIls ? 'סכום בשקלים (₪)' : 'סכום בדולר ($)'}
+            </label>
+            <input type="number" step="any"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-indigo-300"
               placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} />
+            {ilsPreview != null && <p className="text-xs text-indigo-500 mt-1">≈ ₪{Math.round(ilsPreview).toLocaleString()}</p>}
             {usdPreview != null && <p className="text-xs text-indigo-500 mt-1">≈ ${usdPreview.toFixed(0)}</p>}
           </div>
 
@@ -246,9 +268,14 @@ export default function UpdatePage() {
     <div>
       <h1 className="text-xl font-bold text-gray-800 mb-5">עדכון תיק</h1>
 
-      <p className="text-xs text-gray-400 mb-3">בחר נכס לעדכון</p>
+      <button onClick={() => setStep('new-asset')}
+        className="w-full bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-center gap-2 text-indigo-600 font-medium text-sm border-2 border-dashed border-indigo-200 mb-3">
+        <span className="text-lg leading-none">+</span> נכס חדש
+      </button>
 
-      <div className="flex flex-col gap-2 mb-3">
+      <p className="text-xs text-gray-400 mb-3">או בחר נכס קיים</p>
+
+      <div className="flex flex-col gap-2">
         {assets.map(asset => (
           <button key={asset.id} onClick={() => { setSelected(asset); setStep('form'); }}
             className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between text-right">
@@ -262,11 +289,6 @@ export default function UpdatePage() {
           </button>
         ))}
       </div>
-
-      <button onClick={() => setStep('new-asset')}
-        className="w-full bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-center gap-2 text-indigo-600 font-medium text-sm border-2 border-dashed border-indigo-200">
-        <span className="text-lg leading-none">+</span> נכס חדש
-      </button>
     </div>
   );
 }
