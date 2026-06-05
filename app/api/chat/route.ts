@@ -37,7 +37,8 @@ const SYSTEM_PROMPT = `אתה עוזר אישי לניהול תיק השקעות
 אל תנחש טיקרים — השתמש בטיקרים הסטנדרטיים המוכרים.
 
 ## מחיקה
-לפני כל מחיקה: קרא תחילה ל-list_assets או ל-list_deposits כדי לקבל את ה-id המדויק, ורק אז מחק.
+- למחיקת נכס: השתמש ב-delete_asset_by_ticker עם הטיקר (לדוגמה: NVDA, NFLX, BTC)
+- למחיקת הפקדות: השתמש ב-delete_deposits_by_note עם שם הנכס
 
 ענה תמיד בעברית. אחרי כל פעולה סכם מה עשית בצורה ברורה עם מספרים.`;
 
@@ -115,14 +116,14 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
-      name: 'delete_asset',
-      description: 'מוחק נכס מהתיק לפי id. חובה לקרוא ל-list_assets קודם כדי לקבל את ה-id',
+      name: 'delete_asset_by_ticker',
+      description: 'מוחק נכס מהתיק לפי טיקר (לדוגמה: NVDA, BTC, AAPL)',
       parameters: {
         type: 'object',
         properties: {
-          id: { type: 'integer', description: 'מזהה הנכס למחיקה (מספר שלם)' },
+          ticker: { type: 'string', description: 'הטיקר של הנכס למחיקה' },
         },
-        required: ['id'],
+        required: ['ticker'],
         additionalProperties: false,
       },
     },
@@ -130,14 +131,14 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
-      name: 'delete_deposit',
-      description: 'מוחק הפקדה/משיכה לפי id. חובה לקרוא ל-list_deposits קודם כדי לקבל את ה-id',
+      name: 'delete_deposits_by_note',
+      description: 'מוחק את כל ההפקדות שה-note שלהן מכיל את הטקסט הנתון',
       parameters: {
         type: 'object',
         properties: {
-          id: { type: 'integer', description: 'מזהה ההפקדה למחיקה (מספר שלם)' },
+          note_contains: { type: 'string', description: 'טקסט שמופיע בשדה note של ההפקדות למחיקה' },
         },
-        required: ['id'],
+        required: ['note_contains'],
         additionalProperties: false,
       },
     },
@@ -205,16 +206,16 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
     return rows[0];
   }
 
-  if (name === 'delete_asset') {
-    const { id } = args as { id: number };
-    const rows = await sql`DELETE FROM assets WHERE id = ${id} RETURNING *`;
-    return rows[0] ?? { error: 'not found' };
+  if (name === 'delete_asset_by_ticker') {
+    const { ticker } = args as { ticker: string };
+    const rows = await sql`DELETE FROM assets WHERE UPPER(ticker) = UPPER(${ticker}) RETURNING *`;
+    return rows.length > 0 ? { deleted: rows } : { error: 'לא נמצא נכס עם טיקר ' + ticker };
   }
 
-  if (name === 'delete_deposit') {
-    const { id } = args as { id: number };
-    const rows = await sql`DELETE FROM deposits WHERE id = ${id} RETURNING *`;
-    return rows[0] ?? { error: 'not found' };
+  if (name === 'delete_deposits_by_note') {
+    const { note_contains } = args as { note_contains: string };
+    const rows = await sql`DELETE FROM deposits WHERE LOWER(note) LIKE LOWER(${'%' + note_contains + '%'}) RETURNING *`;
+    return rows.length > 0 ? { deleted: rows.length, rows } : { error: 'לא נמצאו הפקדות עם note המכיל: ' + note_contains };
   }
 
   if (name === 'refresh_snapshot') {
